@@ -1,10 +1,11 @@
 # First API
 
-Uma API RESTful construída com Express.js e Prisma, demonstrando um padrão de arquitetura em camadas para autenticação e gerenciamento de usuários.
+Uma API RESTful construída com **Fastify** e **Prisma**, demonstrando um padrão de arquitetura em camadas para autenticação e gerenciamento de usuários.
 
 ## 📋 Índice
 
 - [Visão Geral do Projeto](#visão-geral-do-projeto)
+- [Tecnologias](#tecnologias)
 - [Arquitetura](#arquitetura)
 - [Começando](#começando)
   - [Pré-requisitos](#pré-requisitos)
@@ -12,83 +13,151 @@ Uma API RESTful construída com Express.js e Prisma, demonstrando um padrão de 
   - [Executando a API](#executando-a-api)
 - [Endpoints da API](#endpoints-da-api)
 - [Estrutura do Projeto](#estrutura-do-projeto)
+- [Testando a API](#testando-a-api)
 
 ---
 
 ## Visão Geral do Projeto
 
-Esta API implementa um endpoint de **Sign-Up** com uma arquitetura em camadas limpa e bem definida. A aplicação utiliza:
+Esta API implementa **autenticação completa** (Sign-Up, Sign-In e perfil) com uma arquitetura em camadas limpa e bem definida, utilizando as melhores práticas de desenvolvimento.
 
-- **Express.js** - Framework web
-- **Prisma** - ORM para gerenciamento de banco de dados
-- **PostgreSQL** - Banco de dados
-- **Bcrypt** - Hash de senhas
-- **Zod** - Validação de dados
+## Tecnologias
+
+- **Fastify** (v5.8.2) - Framework web rápido e eficiente
+- **Prisma** (v7.0.0) - ORM type-safe para gerenciamento de banco de dados
+- **PostgreSQL** - Banco de dados relacional robusto
+- **JWT (jsonwebtoken)** - Autenticação baseada em tokens
+- **Bcrypt** - Hash seguro de senhas
+- **Zod** - Validação de dados type-safe
 - **Docker Compose** - Orquestração de containers
+- **TypeScript** - Tipagem estática
 
 ---
 
 ## Arquitetura
 
-A API segue um padrão de **arquitetura em camadas**, garantindo separação de responsabilidades e manutenibilidade:
+A API segue um padrão de **arquitetura em camadas**, garantindo separação de responsabilidades e manutenibilidade. O framework Fastify é configurado no ponto de entrada (`src/index.ts`) que registra as rotas como plugins:
 
 ```mermaid
 graph TB
-    Client["🌐 Cliente HTTP<br/>(Postman, Browser, etc)"]
+    Client["🌐 Cliente HTTP<br/>(Postman, Browser, cURL, etc)"]
 
-    subgraph "Camada de Rotas"
-        Routes["📍 Rotas<br/>main-route.ts"]
+    subgraph "Ponto de Entrada"
+        Entry["📍 index.ts<br/>Configuração do Fastify<br/>Registro de rotas como plugins<br/>Configuração de middlewares"]
     end
 
-    subgraph "Camada de Controlador"
-        Controller["🎮 Controlador<br/>sign-up-controller.ts<br/>- Parseamento de requisição<br/>- Validação com Zod<br/>- Tratamento de erros"]
+    subgraph "Rotas (Fastify Plugins)"
+        SignUpRoute["📝 sign-up-route.ts<br/>POST /sign-up<br/>Registra o handler"]
+        SignInRoute["🔐 sign-in-route.ts<br/>POST /sign-in<br/>Registra o handler"]
+        ProfileRoute["👤 profile-route.ts<br/>GET /me<br/>Com middleware de autenticação"]
     end
 
-    subgraph "Camada de Lógica de Negócio"
-        UseCase["⚙️ Caso de Uso<br/>sign-up-usecase.ts<br/>- Validação de usuário<br/>- Hash de senha<br/>- Regras de negócio"]
+    subgraph "Controllers (Handler)"
+        SignUpCtrl["🎮 sign-up-controller.ts<br/>Valida payload com Zod<br/>Chama use-case"]
+        SignInCtrl["🎮 sign-in-controller.ts<br/>Valida payload com Zod<br/>Chama use-case"]
+        ProfileCtrl["🎮 profile-controller.ts<br/>Extrai userId do request<br/>Chama use-case"]
+    end
+
+    subgraph "Use Cases (Lógica de Negócio)"
+        SignUpUC["⚙️ sign-up-usecase.ts<br/>Valida usuario<br/>Hash de senha<br/>Cria registro"]
+        SignInUC["⚙️ sign-in-usecase.ts<br/>Verifica credenciais<br/>Gera JWT token"]
+        ProfileUC["⚙️ profile-usecase.ts<br/>Busca dados do usuario"]
     end
 
     subgraph "Camada de Dados"
-        Prisma["💾 Cliente Prisma<br/>prisma.ts<br/>- Consultas ao banco<br/>- Operações ORM"]
+        Prisma["💾 Prisma Client<br/>Operações ORM<br/>Manipulação de dados"]
     end
 
     Database["🗄️ PostgreSQL<br/>Banco de Dados"]
 
-    Client -->|HTTP POST| Routes
-    Routes -->|Manipulador de rota| Controller
-    Controller -->|Chamada com dados validados| UseCase
-    UseCase -->|Query/Create| Prisma
+    Middleware["🔒 Middlewares<br/>error-handler.ts<br/>isAuth.ts"]
+
+    Client -->|HTTP| Entry
+    Entry -->|Registra| SignUpRoute
+    Entry -->|Registra| SignInRoute
+    Entry -->|Registra| ProfileRoute
+
+    SignUpRoute -->|Aponta para| SignUpCtrl
+    SignInRoute -->|Aponta para| SignInCtrl
+    ProfileRoute -->|Aponta para| ProfileCtrl
+
+    ProfileRoute -->|Usa| Middleware
+
+    SignUpCtrl -->|Chama| SignUpUC
+    SignInCtrl -->|Chama| SignInUC
+    ProfileCtrl -->|Chama| ProfileUC
+
+    SignUpUC -->|Cria| Prisma
+    SignInUC -->|Busca| Prisma
+    ProfileUC -->|Busca| Prisma
+
     Prisma -->|SQL| Database
     Database -->|Resposta| Prisma
-    Prisma -->|Dados do usuário| UseCase
-    UseCase -->|Resultado| Controller
-    Controller -->|Resposta JSON| Client
+
+    Prisma -->|Dados| SignUpUC
+    Prisma -->|Dados| SignInUC
+    Prisma -->|Dados| ProfileUC
+
+    SignUpUC -->|Resultado| SignUpCtrl
+    SignInUC -->|Resultado| SignInCtrl
+    ProfileUC -->|Resultado| ProfileCtrl
+
+    SignUpCtrl -->|JSON| Client
+    SignInCtrl -->|JSON| Client
+    ProfileCtrl -->|JSON| Client
 ```
 
 ### Detalhamento das Camadas
 
-#### 🌐 **Camada de Rotas** (`src/routes/main-route.ts`)
-- Define os endpoints da API e métodos HTTP
-- Mapeia requisições recebidas para controladores
-- Gerencia o roteamento de requisições
+#### 📍 **Ponto de Entrada** (`src/index.ts`)
 
-#### 🎮 **Camada de Controlador** (`src/controllers/sign-up-controller.ts`)
-- Trata requisição/resposta HTTP
-- Valida payloads de requisição usando schemas Zod
-- Gerencia respostas de erro
-- Passa dados validados para casos de uso
+Arquivo principal que:
 
-#### ⚙️ **Camada de Lógica de Negócio** (`src/use-cases/sign-up-usecase.ts`)
-- Contém a lógica central do negócio
-- Verifica se o usuário já existe
-- Realiza hash de senhas com bcrypt
-- Orquestra operações de dados
-- Retorna respostas estruturadas
+- Cria a instância do Fastify
+- Registra plugins (CORS, rotas como plugins)
+- Configura middlewares (error handler)
+- Inicia o servidor na porta 3333
 
-#### 💾 **Camada de Dados** (`src/lib/prisma/prisma.ts`)
-- Trata todas as operações do banco de dados
-- Gerencia a instância do cliente Prisma
-- Executa consultas através do ORM Prisma
+**Conceito Fastify**: Rotas são registradas como **plugins**, não como middlewares tradicionais.
+
+#### 📝 **Camada de Rotas** (`src/infra/routes/*`)
+
+Arquivos individuais para cada rota (padrão modular):
+
+- `sign-up-route.ts` - Registra POST `/sign-up`
+- `sign-in-route.ts` - Registra POST `/sign-in`
+- `profile-route.ts` - Registra GET `/me` com middleware de autenticação
+
+Cada arquivo exporta uma função registrada como plugin Fastify.
+
+#### 🎮 **Camada de Controlador** (`src/infra/controllers/*`)
+
+Tratam requisição/resposta HTTP:
+
+- Validam payloads com schemas Zod
+- Extraem dados do `request` (body, headers, params)
+- Chamam a lógica de negócio (use-cases)
+- Retornam respostas com status HTTP apropriado
+- Delegam tratamento de erros ao middleware global
+
+#### ⚙️ **Camada de Lógica de Negócio** (`src/app/use-cases/*`)
+
+Contém a lógica central:
+
+- **sign-up-usecase.ts**: Valida se usuário existe, faz hash da senha, cria registro
+- **sign-in-usecase.ts**: Verifica credenciais, gera JWT token
+- **profile-usecase.ts**: Busca dados do perfil do usuário autenticado
+
+#### 💾 **Camada de Dados** (`src/lib/prisma/`)
+
+- Gerencia a instância do Prisma Client
+- Todas as operações de banco são delegadas ao Prisma ORM
+- Fornece métodos type-safe para queries
+
+#### 🔒 **Middlewares** (`src/infra/middlewares/*`)
+
+- **error-handler.ts**: Captura erros globalmente, trata Zod validation errors
+- **isAuth.ts**: Valida JWT token, extrai userId do header Authorization
 
 ---
 
@@ -100,7 +169,7 @@ Certifique-se de ter o seguinte instalado:
 
 - **Node.js** (v18+)
 - **npm** ou **yarn**
-- **Docker** e **Docker Compose**
+- **Docker** e **Docker Compose** (para executar o banco PostgreSQL)
 - **PostgreSQL** (ou use Docker Compose)
 
 ### Instalação
@@ -108,7 +177,7 @@ Certifique-se de ter o seguinte instalado:
 1. **Clone ou navegue até o diretório do projeto:**
 
 ```bash
-cd /Users/Henrique/Documents/www/yt/firstApi
+cd /Users/Henrique/Documents/www/yt/first-api-fastify
 ```
 
 2. **Instale as dependências:**
@@ -119,46 +188,48 @@ npm install
 
 3. **Configure as variáveis de ambiente:**
 
-Crie um arquivo `.env` no diretório raiz:
+Crie um arquivo `.env` no diretório raiz com as variáveis necessárias:
 
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/firstapi?schema=public"
+JWT_SECRET="sua-chave-secreta-aqui"
 ```
 
-4. **Execute as migrações do Prisma:**
+4. **Inicie o banco de dados com Docker Compose:**
+
+```bash
+docker-compose up -d
+```
+
+5. **Execute as migrações do Prisma:**
 
 ```bash
 npx prisma migrate dev
 ```
 
 Isso irá:
+
 - Criar o schema do banco de dados
 - Aplicar todas as migrações
-- Gerar o Cliente Prisma
+- Gerar o Cliente Prisma type-safe
 
 ### Executando a API
 
-#### Opção 1: Usando Docker Compose (Recomendado)
-
-```bash
-docker-compose up -d
-```
-
-Isso inicia o banco de dados PostgreSQL em background.
-
-#### Opção 2: Modo de Desenvolvimento com hot-reload
+#### Modo de Desenvolvimento com hot-reload
 
 ```bash
 npm run dev
 ```
 
-O servidor iniciará e observará mudanças de arquivo. Você verá:
+O servidor iniciará com watch mode. Você verá:
 
 ```
 Server running in dev mode.
 ```
 
 A API estará disponível em: **`http://localhost:3333`**
+
+**Hot-reload**: Qualquer mudança em arquivos TypeScript será automaticamente transpilada e o servidor reiniciará.
 
 ---
 
@@ -176,38 +247,45 @@ Host: localhost:3333
 Content-Type: application/json
 
 {
-  "name": "usuario",
-  "email": "usuario@exemplo.com",
-  "password": "minhasenha123"
+  "name": "João Silva",
+  "email": "joao@exemplo.com",
+  "password": "senha123"
 }
 ```
 
 **Schema do Corpo da Requisição:**
 
-| Campo | Tipo | Validação |
-|-------|------|-----------|
-| `name` | string | Deve ser válido |
-| `email` | string | Deve ser um email válido |
-| `password` | string | Mínimo 3 caracteres |
+| Campo      | Tipo   | Validação                             |
+| ---------- | ------ | ------------------------------------- |
+| `name`     | string | Obrigatório                           |
+| `email`    | string | Obrigatório, deve ser um email válido |
+| `password` | string | Obrigatório, mínimo 3 caracteres      |
 
 **Resposta de Sucesso (201 Created):**
 
 ```json
-Status: 201 Created
 {
-  "user": {
-    "id": "uuid",
-    "name": "usuario",
-    "email": "usuario@exemplo.com",
-    "password": "hashPasswordSenha",
-    "createdAt": "2025-12-15T10:30:00Z"
-  }
+  "message": "User created successfully"
 }
 ```
 
 **Respostas de Erro:**
 
+**400 - Validação Falhou:**
+
+```json
+{
+  "message": "Validation error",
+  "issues": {
+    "email": {
+      "_errors": ["Invalid email"]
+    }
+  }
+}
+```
+
 **409 - Usuário Já Existe:**
+
 ```json
 {
   "message": "User already exist"
@@ -228,39 +306,43 @@ Host: localhost:3333
 Content-Type: application/json
 
 {
-  "email": "usuario@exemplo.com",
-  "password": "minhasenha123"
+  "email": "joao@exemplo.com",
+  "password": "senha123"
 }
 ```
 
 **Schema do Corpo da Requisição:**
 
-| Campo | Tipo | Validação |
-|-------|------|-----------|
-| `email` | string | Deve ser um email válido |
-| `password` | string | Mínimo 3 caracteres |
+| Campo      | Tipo   | Validação                             |
+| ---------- | ------ | ------------------------------------- |
+| `email`    | string | Obrigatório, deve ser um email válido |
+| `password` | string | Obrigatório, mínimo 3 caracteres      |
 
 **Resposta de Sucesso (200 OK):**
 
 ```json
 {
-  "user": {
-    "email": "usuario@exemplo.com"
-  },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1ZDM4YzVkNi1hZTQ0LTQzNDctYTkzNC04MjM0MDI3NTBmMDciLCJpYXQiOjE3MzY0MjE5ODR9.XaBcDeFgHiJkLmNoPqRsTuVwXyZ123..."
 }
 ```
 
 **Respostas de Erro:**
 
-**409 - Usuário Não Existe:**
+**400 - Validação Falhou:**
+
 ```json
 {
-  "message": "User already exist"
+  "message": "Validation error",
+  "issues": {
+    "password": {
+      "_errors": ["password must be at least 3 characters long."]
+    }
+  }
 }
 ```
 
-**401 - Senha Incorreta:**
+**401 - Credenciais Inválidas:**
+
 ```json
 {
   "message": "Unauthorized."
@@ -269,47 +351,42 @@ Content-Type: application/json
 
 ---
 
-### GET `/profile`
+### GET `/me`
 
-Obtém os dados do perfil do usuário autenticado.
+Obtém os dados do perfil do usuário autenticado. **Requer token JWT válido.**
 
 **Requisição:**
 
 ```http
-GET /profile HTTP/1.1
+GET /me HTTP/1.1
 Host: localhost:3333
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 **Headers Obrigatórios:**
 
-| Header | Tipo | Descrição |
-|--------|------|-----------|
-| `Authorization` | string | Bearer token JWT obtido no sign-in |
+| Header          | Tipo   | Descrição                             |
+| --------------- | ------ | ------------------------------------- |
+| `Authorization` | string | Bearer token JWT obtido no `/sign-in` |
 
 **Resposta de Sucesso (200 OK):**
 
 ```json
 {
-  "id": "uuid",
-  "email": "usuario@exemplo.com",
-  "createdAt": "2025-12-15T10:30:00Z"
+  "id": "5d38c5d6-ae44-4347-a934-823402750f07",
+  "name": "João Silva",
+  "email": "joao@exemplo.com",
+  "createdAt": "2026-03-11T12:15:30.000Z"
 }
 ```
 
 **Respostas de Erro:**
 
-**401 - Token Inválido ou Ausente:**
+**401 - Token Inválido, Expirado ou Ausente:**
+
 ```json
 {
   "message": "Unauthorized."
-}
-```
-
-**404 - Usuário Não Encontrado:**
-```json
-{
-  "message": "User already exist"
 }
 ```
 
@@ -318,100 +395,153 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ## Estrutura do Projeto
 
 ```
-firstApi/
+first-api-fastify/
 ├── src/
-│   ├── index.ts                      # Ponto de entrada
-│   ├── @types/
-│   │   └── express.d.ts              # Extensão de tipos do Express
+│   ├── index.ts                          # Ponto de entrada, configuração do Fastify
 │   ├── app/
 │   │   ├── errors/
-│   │   │   ├── unauthorized-error.ts       # Erro 401 - Não autorizado
-│   │   │   └── user-already-exist-error.ts # Erro 409 - Usuário já existe
+│   │   │   ├── unauthorized-error.ts          # Erro 401 - Usuário não autorizado
+│   │   │   └── user-already-exist-error.ts    # Erro 409 - Email já registrado
 │   │   └── use-cases/
-│   │       ├── profile-usecase.ts    # Lógica de busca de perfil
-│   │       ├── sign-in-usecase.ts    # Lógica de autenticação
-│   │       └── sign-up-usecase.ts    # Lógica de registro
-│   ├── controllers/
-│   │   ├── profile-controller.ts     # Tratamento de perfil
-│   │   ├── sign-in-controller.ts     # Tratamento de login
-│   │   └── sign-up-controller.ts     # Tratamento de registro
+│   │       ├── sign-up-usecase.ts        # Lógica de criação de usuário
+│   │       ├── sign-in-usecase.ts        # Lógica de autenticação e geração JWT
+│   │       └── profile-usecase.ts        # Lógica de busca de perfil
 │   ├── infra/
 │   │   ├── controllers/
-│   │   │   └── sign-up-controller.ts
+│   │   │   ├── sign-up-controller.ts     # Handler HTTP para /sign-up
+│   │   │   ├── sign-in-controller.ts     # Handler HTTP para /sign-in
+│   │   │   └── profile-controller.ts     # Handler HTTP para /me
 │   │   ├── middlewares/
-│   │   │   ├── error-handler.ts      # Middleware de tratamento de erros
-│   │   │   └── isAuth.ts             # Middleware de autenticação JWT
+│   │   │   ├── error-handler.ts          # Tratamento global de erros
+│   │   │   └── isAuth.ts                 # Validação de JWT token
 │   │   └── routes/
-│   │       └── main-route.ts         # Definições de rotas
+│   │       ├── sign-up-route.ts          # Plugin Fastify - POST /sign-up
+│   │       ├── sign-in-route.ts          # Plugin Fastify - POST /sign-in
+│   │       └── profile-route.ts          # Plugin Fastify - GET /me
 │   └── lib/
 │       └── prisma/
+│           ├── prisma.ts                 # Configuração do Prisma Client
+│           └── generated/                # Gerado automaticamente pelo Prisma
+│               └── prisma/               # Cliente Prisma type-safe
+├── prisma/
+│   ├── schema.prisma                     # Schema do banco de dados
+│   └── migrations/                       # Histórico de migrações
+├── .env                                  # Variáveis de ambiente (não commitado)
+├── .env.example                          # Exemplo de variáveis de ambiente
+├── docker-compose.yml                    # Configuração do Docker Compose
+├── package.json                          # Dependências e scripts
+├── tsconfig.json                         # Configuração do TypeScript
+├── prisma.config.ts                      # Configuração do Prisma
+├── README.md                             # Este arquivo
+└── request.http                          # Testes HTTP com Rest Client
+```
+
+### Descrição dos Arquivos
+
+#### Ponto de Entrada
+
+- **src/index.ts**: Inicializa o Fastify, registra rotas como plugins, configura CORS e error handler
+
+#### Camada de Aplicação (app/)
+
+- **errors/**: Classes customizadas para diferentes tipos de erro
+- **use-cases/**: Funções que contêm a lógica de negócio pura
+
+#### Camada de Infraestrutura (infra/)
+
+- **controllers/**: Handlers Fastify que tratam requisições HTTP
+- **middlewares/**: Funções de middleware (error handler, autenticação)
+- **routes/**: Plugins Fastify que registram endpoints
+
+#### Banco de Dados
+
+- **lib/prisma/**: Instância do Prisma Client
+- **prisma/schema.prisma**: Definição do schema (Models, Relations)
+- **prisma/migrations/**: Histórico de alterações do banco
+
+---
+
+## Testando a API
+
+### Usando cURL
+
 **Sign-Up:**
+
 ```bash
 curl -X POST http://localhost:3333/sign-up \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "João Silva",
     "email": "joao@exemplo.com",
-    "password": "senhasegura123"
+    "password": "senha123"
   }'
 ```
 
 **Sign-In:**
+
 ```bash
 curl -X POST http://localhost:3333/sign-in \
   -H "Content-Type: application/json" \
   -d '{
     "email": "joao@exemplo.com",
-    "password": "senhasegura123"
+    "password": "senha123"
   }'
 ```
 
-**Profile (com token):**
+**Profile (substitua o token):**
+
 ```bash
-curl -X GET http://localhost:3333/profile \
-  -H "Authorization: Bearer seu_token_jwt_aqui"
+curl -X GET http://localhost:3333/me \
+  -H "Authorization: Bearer seu_token_aqui"
 ```
 
 ### Usando Postman
 
-#### 1. Sign-Up
+#### 1. Criar Sign-Up
 
-1. Crie uma nova requisição **POST**
+1. Crie uma requisição **POST**
 2. URL: `http://localhost:3333/sign-up`
-3. Headers: `Content-Type: application/json`
-4. Body (raw JSON):
+3. Tab **Headers**: `Content-Type: application/json`
+4. Tab **Body** → **raw** → **JSON**:
+
 ```json
 {
-  "name": "usuario",
-  "email": "usuario@exemplo.com",
+  "name": "João Silva",
+  "email": "joao@exemplo.com",
   "password": "senha123"
 }
 ```
 
-#### 2. Sign-In
+5. Clique **Send**
 
-1. Crie uma nova requisição **POST**
+#### 2. Fazer Sign-In
+
+1. Crie uma requisição **POST**
 2. URL: `http://localhost:3333/sign-in`
-3. Headers: `Content-Type: application/json`
-4. Body (raw JSON):
+3. Tab **Headers**: `Content-Type: application/json`
+4. Tab **Body** → **raw** → **JSON**:
+
 ```json
 {
-  "email": "usuario@exemplo.com",
+  "email": "joao@exemplo.com",
   "password": "senha123"
 }
 ```
-5. **Copie o token** da resposta
 
-#### 3. Profile
+5. Clique **Send**
+6. **Copie o token** da resposta
 
-1. Crie uma nova requisição **GET**
-2. URL: `http://localhost:3333/profile`
-3. Headers:
-   - `Authorization: Bearer <seu_token_aqui>`
-4. Body: (vazio)
+#### 3. Acessar Perfil
 
-### Usando Arquivo HTTP (`request.http`)
+1. Crie uma requisição **GET**
+2. URL: `http://localhost:3333/me`
+3. Tab **Headers**:
+   - `Authorization` = `Bearer seu_token_aqui` (cole o token obtido no Step 2)
+4. Clique **Send**
 
-O projeto inclui um arquivo `request.http` para testes com a extensão REST Client do VS Code:
+### Usando Arquivo HTTP (REST Client)
+
+O projeto inclui `request.http` para testes diretos no VS Code com a extensão [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client):
 
 ```http
 ### Sign-Up
@@ -419,8 +549,8 @@ POST http://localhost:3333/sign-up
 Content-Type: application/json
 
 {
-  "name": "teste",
-  "email": "teste@exemplo.com",
+  "name": "João Silva",
+  "email": "joao@exemplo.com",
   "password": "senha123"
 }
 
@@ -429,69 +559,103 @@ POST http://localhost:3333/sign-in
 Content-Type: application/json
 
 {
-  "email": "teste@exemplo.com",
+  "email": "joao@exemplo.com",
   "password": "senha123"
 }
 
-### Get Profile (com token)
-GET http://localhost:3333/profile
+### Get Profile (use o token do Sign-In)
+GET http://localhost:3333/me
 Authorization: Bearer seu_token_aqui
 ```
-- **Validação de Dados**: Schemas Zod para validação de entrada
 
-### 🗄️ Banco de Dados
-
-- **PostgreSQL**: Banco de dados relacional robusto
-- **Prisma ORM**: Interface type-safe para operações de banco de dados
-- **Migrações**: Controle de versão do schema do banco de dados
-
-### 🎯 Gerenciamento de Erros
-
-A API possui tratamento robusto de erros com classes personalizadas:
-
-#### **UnauthorizedError**
-- HTTP Status: **401 Unauthorized**
-- Lançado quando: Credenciais inválidas ou token JWT ausente/inválido
-- Mensagem: `"Unauthorized."`
-
-#### **UserAlreadyExistError**
-- HTTP Status: **409 Conflict** (para sign-up) ou **404 Not Found** (para profile)
-- Lançado quando: Email já registrado ou usuário não encontrado
-- Mensagem: `"User already exist"`
+Clique em **"Send Request"** acima de cada bloco para executar.
 
 ---
 
-## Testando a API
+## Fluxo de Autenticação
 
-### Usando cURL
+1. **Sign-Up**: Usuário se registra com email, nome e senha
+   - Senha é hashada com bcrypt
+   - Email deve ser único (409 Conflict se já existe)
 
-```bash
-curl -X POST http://localhost:3333/sign-up \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "joao",
-    "email": "joao@exemplo.com",
-    "password": "senhasegura123"
-  }'
-```
+2. **Sign-In**: Usuário faz login com email e senha
+   - Sistema verifica credenciais
+   - Retorna JWT token válido (configurável)
 
-### Usando Postman
+3. **Profile**: Usuário acessa dados do perfil
+   - Requer JWT token válido no header `Authorization`
+   - Token é validado pelo middleware `isAuth`
+   - Retorna dados do usuário autenticado
 
-1. Crie uma nova requisição POST
-2. URL: `http://localhost:3333/sign-up`
-3. Headers: `Content-Type: application/json`
-4. Body (raw JSON):
+---
+
+## Tratamento de Erros
+
+A API implementa tratamento de erros em diferentes camadas:
+
+### Validação (Zod)
+
+Erros de validação retornam **400 Bad Request**:
+
 ```json
 {
-  "name": "usuario",
-  "email": "usuario@exemplo.com",
-  "password": "senha123"
+  "message": "Validation error",
+  "issues": {
+    "email": {
+      "_errors": ["Invalid email"]
+    },
+    "password": {
+      "_errors": ["password must be at least 3 characters long."]
+    }
+  }
 }
 ```
 
-### Usando Arquivo HTTP (`request.http`)
+### Erros de Negócio
 
-O projeto inclui um arquivo `request.http` para testes com a extensão REST Client do VS Code.
+#### UserAlreadyExistError
+
+- **HTTP Status**: 409 Conflict
+- **Lançado em**: Sign-Up com email já registrado
+- **Mensagem**: `"User already exist"`
+
+#### UnauthorizedError
+
+- **HTTP Status**: 401 Unauthorized
+- **Lançado em**: Sign-In com credenciais inválidas ou Profile sem token válido
+- **Mensagem**: `"Unauthorized."`
+
+### Erros Internos
+
+Qualquer erro não tratado retorna **500 Internal Server Error**:
+
+```json
+{
+  "message": "Internal server error."
+}
+```
+
+---
+
+## Variáveis de Ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+# Banco de Dados
+DATABASE_URL="postgresql://user:password@localhost:5432/firstapi?schema=public"
+
+# JWT
+JWT_SECRET="sua-chave-secreta-super-segura"
+
+# Opcional: Porta (padrão 3333)
+PORT=3333
+```
+
+### Variáveis Necessárias
+
+- `DATABASE_URL`: Connection string do PostgreSQL
+- `JWT_SECRET`: Chave secreta para assinar JWTs (mínimo 32 caracteres recomendado)
 
 ---
 
@@ -509,18 +673,36 @@ npm run dev
 npx prisma generate
 ```
 
+### Acesse o Prisma Studio para gerenciar dados:
+
+```bash
+npx prisma studio
+```
+
 ---
 
-## Dependências
+## Stack Tecnológico Detalhado
 
-- **express** - Framework web
-- **@prisma/client** - ORM
-- **pg** - Driver PostgreSQL
-- **bcrypt** - Hash de senhas
-- **zod** - Validação de schema
-- **dotenv** - Variáveis de ambiente
-- **tsx** - Executor TypeScript
-- **jsonwebtoken** - Autenticação para gerar token
+| Tecnologia             | Versão  | Propósito                  |
+| ---------------------- | ------- | -------------------------- |
+| **Fastify**            | 5.8.2   | Framework web performático |
+| **@fastify/cors**      | 11.2.0  | Middleware CORS            |
+| **Prisma Client**      | ^7.0.0  | ORM type-safe              |
+| **@prisma/adapter-pg** | ^7.0.0  | Adapter PostgreSQL         |
+| **PostgreSQL**         | Latest  | Banco de dados             |
+| **pg**                 | ^8.16.3 | Driver PostgreSQL          |
+| **jsonwebtoken**       | ^9.0.3  | JWT token generation       |
+| **bcrypt**             | ^6.0.0  | Password hashing           |
+| **zod**                | ^4.1.12 | Schema validation          |
+| **dotenv**             | ^17.2.3 | Environment variables      |
+| **TypeScript**         | ^5.9.3  | Type safety                |
+| **tsx**                | ^4.20.6 | TypeScript executor        |
+
+---
+
+## Contribuindo
+
+Este é um projeto de aprendizado. Sinta-se livre para fazer fork, melhorar e abrir pull requests.
 
 ---
 
