@@ -1,0 +1,28 @@
+
+### sign-up - Cadastro
+POST http://localhost:3333/sign-up
+Content-Type: application/json
+
+{
+  "name": "julio",
+  "email": "julio@gmail.com",
+  "password": "1234567"
+}
+
+### sign-in -login
+POST http://localhost:3333/sign-in
+Content-Type: application/json
+
+{
+  "email": "julio@gmail.com",
+  "password": "1234567"
+}
+
+
+
+### profile
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyM2YwY2FhMi03ZDU3LTRmZWUtOGRlNS0xYjdjYzcwMmVmZTciLCJpYXQiOjE3NzMyNjA0MDcsImV4cCI6MTc3MzI2MDQzN30.lPRW26a9Qd1FtyTE22-bNyaI2hv-dIWZuCCp9MtIa1Y
+GET http://localhost:3333/me
+Content-Type: application/json
+Authorization: Bearer {{token}}
