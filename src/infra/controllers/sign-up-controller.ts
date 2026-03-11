@@ -1,24 +1,15 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { z } from "zod";
+
 import { signUpUseCase } from "../../app/use-cases/sign-up-usecase.js";
 import { UserAlreadyExistError } from "../../app/errors/user-already-exist-error.js";
-
-const schemaSignUpRequestBody = z.object({
-  name: z.string("Name required."),
-  email: z.email("Email required."),
-  password: z
-    .string("password required.")
-    .min(3, "password must be at least 3 characters long."),
-});
+import type { SignUpBodySchema } from "../routes/schemas/sign-up-schema.js";
 
 export async function signUpController(
-  request: FastifyRequest,
+  request: FastifyRequest<{ Body: SignUpBodySchema }>,
   reply: FastifyReply,
 ) {
   try {
-    const { name, email, password } = schemaSignUpRequestBody.parse(
-      request.body,
-    );
+    const { name, email, password } = request.body;
 
     await signUpUseCase({ name, email, password });
 

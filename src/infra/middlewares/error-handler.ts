@@ -10,6 +10,8 @@ export const configure = (app: FastifyInstance) => {
       });
     }
 
+    console.log(error);
+
     return reply.status(500).send({ message: "Internal server error." });
   });
 };

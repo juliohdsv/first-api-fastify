@@ -1,21 +1,15 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { z } from "zod";
+
 import { signInUseCase } from "../../app/use-cases/sign-in-usecase.js";
 import { UnauthorizedError } from "../../app/errors/unauthorized-error.js";
-
-const schemaSignUpRequestBody = z.object({
-  email: z.email("Email required."),
-  password: z
-    .string("password required.")
-    .min(3, "password must be at least 3 characters long."),
-});
+import { type SignInBodySchema } from "../routes/schemas/sign-in-schema.js";
 
 export async function signInController(
-  request: FastifyRequest,
+  request: FastifyRequest<{ Body: SignInBodySchema }>,
   reply: FastifyReply,
 ) {
   try {
-    const { email, password } = schemaSignUpRequestBody.parse(request.body);
+    const { email, password } = request.body;
 
     const data = await signInUseCase({ email, password });
 

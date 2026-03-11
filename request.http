@@ -22,7 +22,7 @@ Content-Type: application/json
 
 ### profile
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyM2YwY2FhMi03ZDU3LTRmZWUtOGRlNS0xYjdjYzcwMmVmZTciLCJpYXQiOjE3NzMyNjA0MDcsImV4cCI6MTc3MzI2MDQzN30.lPRW26a9Qd1FtyTE22-bNyaI2hv-dIWZuCCp9MtIa1Y
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyM2YwY2FhMi03ZDU3LTRmZWUtOGRlNS0xYjdjYzcwMmVmZTciLCJpYXQiOjE3NzMyNjU2NTksImV4cCI6MTc3MzM1MjA1OX0.881kNuA-6Pdwj3rADkkyLRzOo7B6j2YqBfW6sG3WZLQ
 GET http://localhost:3333/me
 Content-Type: application/json
 Authorization: Bearer {{token}}

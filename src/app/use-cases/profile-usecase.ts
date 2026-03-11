@@ -9,6 +9,7 @@ interface IProfileUseCaseRequest {
 interface IProfileUseCaseResponse {
   user: {
     id: string;
+    name: string;
     email: string;
     createdAt: Date;
   };
@@ -30,6 +31,7 @@ export async function profileUseCase({
   return {
     user: {
       id: userExist.id,
+      name: userExist.name,
       email: userExist.email,
       createdAt: userExist.createdAt,
     },
