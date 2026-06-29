@@ -1,4 +1,4 @@
-# First API
+# First API: Backend Youtube
 
 Uma API RESTful construída com **Fastify** e **Prisma**, demonstrando um padrão de arquitetura em camadas para autenticação e gerenciamento de usuários.
 
