@@ -6,12 +6,13 @@ import {
   profileSuccessResponseSchema,
   profileErrorResponseSchema,
 } from "./schemas/profile-schema.js";
+import { isAuthorized } from "../middlewares/isAuthorized.js";
 
 export function profileRoute(app: FastifyInstance) {
   app.get(
     "/me",
     {
-      preHandler: isAuth,
+      preHandler: [isAuth, isAuthorized(["ADMIN", "USER"])],
       schema: {
         summary: "Profile data user",
         tags: ["User"],

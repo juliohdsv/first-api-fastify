@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { ZodError } from "zod";
+import { ForbiddenError } from "../../app/errors/forbidden-error.js";
 
 export const configure = (app: FastifyInstance) => {
   app.setErrorHandler((error: Error, _, reply) => {
@@ -8,6 +9,10 @@ export const configure = (app: FastifyInstance) => {
         message: "Validation error",
         issues: error.format(),
       });
+    }
+
+    if (error instanceof ForbiddenError) {
+      return reply.status(403).send({ message: error.message });
     }
 
     console.log(error);

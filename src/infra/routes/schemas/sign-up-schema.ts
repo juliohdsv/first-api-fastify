@@ -6,6 +6,7 @@ export const signUpSchema = z.object({
   password: z
     .string("password required.")
     .min(3, "password must be at least 3 characters long."),
+  role: z.enum(["ADMIN", "USER"]).default("USER"),
 });
 
 export const signIUpuccessResponseSchema = z.void();

@@ -17,9 +17,10 @@ export async function isAuth(request: FastifyRequest) {
 
     const [_, token] = authHeader.split(" ");
     const JWT_SECRET = String(process.env.JWT_SECRET);
-    const { sub } = jwt.verify(String(token), JWT_SECRET) as TokenPayload;
+    const { sub, role } = jwt.verify(String(token), JWT_SECRET) as TokenPayload;
 
     request.userId = sub;
+    request.role = role;
   } catch (error) {
     throw error;
   }

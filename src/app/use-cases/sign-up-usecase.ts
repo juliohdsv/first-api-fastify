@@ -7,6 +7,7 @@ interface ISignUpUseCaseRequest {
   name: string;
   email: string;
   password: string;
+  role: "ADMIN" | "USER";
 }
 
 interface ISignUpUseCaseResponse {
@@ -23,6 +24,7 @@ export async function signUpUseCase({
   name,
   email,
   password,
+  role,
 }: ISignUpUseCaseRequest): Promise<ISignUpUseCaseResponse> {
   const userExist = await prisma.user.findUnique({
     where: {
@@ -41,6 +43,7 @@ export async function signUpUseCase({
       name,
       email,
       password: hashPassword,
+      role,
     },
   });
 

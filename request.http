@@ -6,7 +6,8 @@ Content-Type: application/json
 {
   "name": "julio",
   "email": "julio@gmail.com",
-  "password": "1234567"
+  "password": "123456",
+  "role": "USER"
 }
 
 ### sign-in -login
@@ -15,14 +16,14 @@ Content-Type: application/json
 
 {
   "email": "julio@gmail.com",
-  "password": "1234567"
+  "password": "123456"
 }
 
 
 
 ### profile
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyM2YwY2FhMi03ZDU3LTRmZWUtOGRlNS0xYjdjYzcwMmVmZTciLCJpYXQiOjE3NzMyNjU2NTksImV4cCI6MTc3MzM1MjA1OX0.881kNuA-6Pdwj3rADkkyLRzOo7B6j2YqBfW6sG3WZLQ
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4ZmU3OWJhOS1lMDc2LTRhNzItYWUxOC0xM2E5MTBkMzNiOGMiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NjM5NTA1MiwiZXhwIjoxNzg2NDgxNDUyfQ.MzLKozuUORxztoQhxHE9KelcPhHZwwdAw68NGgwJe-4
 GET http://localhost:3333/me
 Content-Type: application/json
 Authorization: Bearer {{token}}

@@ -41,6 +41,7 @@ export async function signInUseCase({
   const token = jwt.sign(
     {
       sub: userExist.id,
+      role: userExist.role,
     },
     JWT_SECRET,
     {

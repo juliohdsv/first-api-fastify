@@ -1,6 +1,6 @@
 # First API: Backend Youtube
 
-Uma API RESTful construída com **Fastify** e **Prisma**, demonstrando um padrão de arquitetura em camadas para autenticação e gerenciamento de usuários.
+Uma API RESTful construída com **Fastify** e **Prisma**, demonstrando um padrão de arquitetura em camadas para autenticação, autorização por perfil e gerenciamento de usuários.
 
 ## 📋 Índice
 
@@ -19,7 +19,7 @@ Uma API RESTful construída com **Fastify** e **Prisma**, demonstrando um padrã
 
 ## Visão Geral do Projeto
 
-Esta API implementa **autenticação completa** (Sign-Up, Sign-In e perfil) com uma arquitetura em camadas limpa e bem definida, utilizando as melhores práticas de desenvolvimento.
+Esta API implementa **autenticação e autorização baseada em roles** (Sign-Up, Sign-In e perfil) com uma arquitetura em camadas limpa e bem definida. Cada usuário possui o perfil `ADMIN` ou `USER`, incluído no JWT e validado antes do acesso às rotas protegidas.
 
 ## Tecnologias
 
@@ -49,7 +49,7 @@ graph TB
     subgraph "Rotas (Fastify Plugins)"
         SignUpRoute["📝 sign-up-route.ts<br/>POST /sign-up<br/>Registra o handler"]
         SignInRoute["🔐 sign-in-route.ts<br/>POST /sign-in<br/>Registra o handler"]
-        ProfileRoute["👤 profile-route.ts<br/>GET /me<br/>Com middleware de autenticação"]
+        ProfileRoute["👤 profile-route.ts<br/>GET /me<br/>Com autenticação e autorização"]
     end
 
     subgraph "Controllers (Handler)"
@@ -70,7 +70,7 @@ graph TB
 
     Database["🗄️ PostgreSQL<br/>Banco de Dados"]
 
-    Middleware["🔒 Middlewares<br/>error-handler.ts<br/>isAuth.ts"]
+    Middleware["🔒 Middlewares<br/>error-handler.ts<br/>isAuth.ts<br/>isAuthorized.ts"]
 
     Client -->|HTTP| Entry
     Entry -->|Registra| SignUpRoute
@@ -126,7 +126,7 @@ Arquivos individuais para cada rota (padrão modular):
 
 - `sign-up-route.ts` - Registra POST `/sign-up`
 - `sign-in-route.ts` - Registra POST `/sign-in`
-- `profile-route.ts` - Registra GET `/me` com middleware de autenticação
+- `profile-route.ts` - Registra GET `/me` com middlewares de autenticação e autorização
 
 Cada arquivo exporta uma função registrada como plugin Fastify.
 
@@ -144,8 +144,8 @@ Tratam requisição/resposta HTTP:
 
 Contém a lógica central:
 
-- **sign-up-usecase.ts**: Valida se usuário existe, faz hash da senha, cria registro
-- **sign-in-usecase.ts**: Verifica credenciais, gera JWT token
+- **sign-up-usecase.ts**: Valida se usuário existe, faz hash da senha e cria o registro com role
+- **sign-in-usecase.ts**: Verifica credenciais e gera JWT com `sub` (ID) e `role`
 - **profile-usecase.ts**: Busca dados do perfil do usuário autenticado
 
 #### 💾 **Camada de Dados** (`src/lib/prisma/`)
@@ -157,7 +157,8 @@ Contém a lógica central:
 #### 🔒 **Middlewares** (`src/infra/middlewares/*`)
 
 - **error-handler.ts**: Captura erros globalmente, trata Zod validation errors
-- **isAuth.ts**: Valida JWT token, extrai userId do header Authorization
+- **isAuth.ts**: Valida JWT token e extrai `userId` e `role` do header `Authorization`
+- **isAuthorized.ts**: Confere se a role do token está entre os perfis permitidos pela rota
 
 ---
 
@@ -193,6 +194,7 @@ Crie um arquivo `.env` no diretório raiz com as variáveis necessárias:
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/firstapi?schema=public"
 JWT_SECRET="sua-chave-secreta-aqui"
+SALT_ROUNDS=10
 ```
 
 4. **Inicie o banco de dados com Docker Compose:**
@@ -249,7 +251,8 @@ Content-Type: application/json
 {
   "name": "João Silva",
   "email": "joao@exemplo.com",
-  "password": "senha123"
+  "password": "senha123",
+  "role": "USER"
 }
 ```
 
@@ -260,14 +263,11 @@ Content-Type: application/json
 | `name`     | string | Obrigatório                           |
 | `email`    | string | Obrigatório, deve ser um email válido |
 | `password` | string | Obrigatório, mínimo 3 caracteres      |
+| `role`     | enum   | Opcional; `ADMIN` ou `USER` (padrão: `USER`) |
 
 **Resposta de Sucesso (201 Created):**
 
-```json
-{
-  "message": "User created successfully"
-}
-```
+O endpoint retorna o status **201 Created** sem corpo de resposta.
 
 **Respostas de Erro:**
 
@@ -353,7 +353,7 @@ Content-Type: application/json
 
 ### GET `/me`
 
-Obtém os dados do perfil do usuário autenticado. **Requer token JWT válido.**
+Obtém os dados do perfil do usuário autenticado. **Requer token JWT válido e uma role autorizada.** Atualmente, `ADMIN` e `USER` podem acessar esta rota.
 
 **Requisição:**
 
@@ -390,6 +390,14 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
+**403 - Role sem permissão para a rota:**
+
+```json
+{
+  "message": "Forbidden."
+}
+```
+
 ---
 
 ## Estrutura do Projeto
@@ -401,6 +409,7 @@ first-api-fastify/
 │   ├── app/
 │   │   ├── errors/
 │   │   │   ├── unauthorized-error.ts          # Erro 401 - Usuário não autorizado
+│   │   │   ├── forbidden-error.ts              # Erro 403 - Role sem permissão
 │   │   │   └── user-already-exist-error.ts    # Erro 409 - Email já registrado
 │   │   └── use-cases/
 │   │       ├── sign-up-usecase.ts        # Lógica de criação de usuário
@@ -413,7 +422,8 @@ first-api-fastify/
 │   │   │   └── profile-controller.ts     # Handler HTTP para /me
 │   │   ├── middlewares/
 │   │   │   ├── error-handler.ts          # Tratamento global de erros
-│   │   │   └── isAuth.ts                 # Validação de JWT token
+│   │   │   ├── isAuth.ts                 # Validação do JWT e extração da role
+│   │   │   └── isAuthorized.ts           # Validação da role permitida na rota
 │   │   └── routes/
 │   │       ├── sign-up-route.ts          # Plugin Fastify - POST /sign-up
 │   │       ├── sign-in-route.ts          # Plugin Fastify - POST /sign-in
@@ -473,7 +483,8 @@ curl -X POST http://localhost:3333/sign-up \
   -d '{
     "name": "João Silva",
     "email": "joao@exemplo.com",
-    "password": "senha123"
+    "password": "senha123",
+    "role": "USER"
   }'
 ```
 
@@ -508,7 +519,8 @@ curl -X GET http://localhost:3333/me \
 {
   "name": "João Silva",
   "email": "joao@exemplo.com",
-  "password": "senha123"
+  "password": "senha123",
+  "role": "USER"
 }
 ```
 
@@ -572,20 +584,41 @@ Clique em **"Send Request"** acima de cada bloco para executar.
 
 ---
 
-## Fluxo de Autenticação
+## Autenticação e Autorização
 
-1. **Sign-Up**: Usuário se registra com email, nome e senha
+1. **Sign-Up**: Usuário se registra com email, nome, senha e role
    - Senha é hashada com bcrypt
    - Email deve ser único (409 Conflict se já existe)
+   - A role deve ser `ADMIN` ou `USER`; se não for enviada, assume `USER`
 
 2. **Sign-In**: Usuário faz login com email e senha
    - Sistema verifica credenciais
-   - Retorna JWT token válido (configurável)
+   - Retorna JWT válido por 1 dia, contendo o ID do usuário (`sub`) e sua role
 
-3. **Profile**: Usuário acessa dados do perfil
+3. **Autenticação** (`isAuth`): a rota protegida lê `Authorization: Bearer <token>`, verifica a assinatura do JWT e disponibiliza `userId` e `role` na requisição.
+
+4. **Autorização** (`isAuthorized`): a rota compara a role presente no token com as roles permitidas. Quando não há permissão, a API retorna **403 Forbidden**.
+
+5. **Profile**: Usuário acessa dados do perfil
    - Requer JWT token válido no header `Authorization`
-   - Token é validado pelo middleware `isAuth`
+   - A rota `/me` permite as roles `ADMIN` e `USER`
    - Retorna dados do usuário autenticado
+
+### Roles no banco de dados
+
+O modelo `User` possui o campo obrigatório `role`, definido como o enum PostgreSQL `Role`:
+
+| Valor | Descrição |
+| --- | --- |
+| `ADMIN` | Perfil administrativo, destinado a rotas administrativas. |
+| `USER` | Perfil padrão de um usuário autenticado. |
+
+Após atualizar o schema, aplique a migração e gere o cliente Prisma:
+
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
 
 ---
 
@@ -625,6 +658,12 @@ Erros de validação retornam **400 Bad Request**:
 - **Lançado em**: Sign-In com credenciais inválidas ou Profile sem token válido
 - **Mensagem**: `"Unauthorized."`
 
+#### ForbiddenError
+
+- **HTTP Status**: 403 Forbidden
+- **Lançado em**: Rota protegida quando a role do JWT não está entre as roles permitidas
+- **Mensagem**: `"Forbidden."`
+
 ### Erros Internos
 
 Qualquer erro não tratado retorna **500 Internal Server Error**:
@@ -648,6 +687,9 @@ DATABASE_URL="postgresql://user:password@localhost:5432/firstapi?schema=public"
 # JWT
 JWT_SECRET="sua-chave-secreta-super-segura"
 
+# Bcrypt
+SALT_ROUNDS=10
+
 # Opcional: Porta (padrão 3333)
 PORT=3333
 ```
@@ -656,6 +698,7 @@ PORT=3333
 
 - `DATABASE_URL`: Connection string do PostgreSQL
 - `JWT_SECRET`: Chave secreta para assinar JWTs (mínimo 32 caracteres recomendado)
+- `SALT_ROUNDS`: Número de rounds usados pelo bcrypt para gerar o hash das senhas
 
 ---
 

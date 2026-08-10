@@ -9,9 +9,9 @@ export async function signUpController(
   reply: FastifyReply,
 ) {
   try {
-    const { name, email, password } = request.body;
+    const { name, email, password, role } = request.body;
 
-    await signUpUseCase({ name, email, password });
+    await signUpUseCase({ name, email, password, role });
 
     return reply.status(201).send();
   } catch (error) {
