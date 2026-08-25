@@ -1,6 +1,10 @@
 
+@baseUrl = http://localhost:3333
+
+###
+
 ### sign-up - Cadastro
-POST http://localhost:3333/sign-up
+POST {{baseUrl}}/sign-up
 Content-Type: application/json
 
 {
@@ -11,7 +15,7 @@ Content-Type: application/json
 }
 
 ### sign-in -login
-POST http://localhost:3333/sign-in
+POST {{baseUrl}}/sign-in
 Content-Type: application/json
 
 {
@@ -23,7 +27,8 @@ Content-Type: application/json
 
 ### profile
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4ZmU3OWJhOS1lMDc2LTRhNzItYWUxOC0xM2E5MTBkMzNiOGMiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NjM5NTA1MiwiZXhwIjoxNzg2NDgxNDUyfQ.MzLKozuUORxztoQhxHE9KelcPhHZwwdAw68NGgwJe-4
-GET http://localhost:3333/me
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMWYzMWQ5NS1mNmI4LTQxMDUtOTNiYy1kNDE5OWExMGUwOGEiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NzY2NDY4MywiZXhwIjoxNzg3NzUxMDgzfQ.uzFVPzUupAjVmMZofB614rHIKj1e4z06jX2dZiKOMK8
+
+GET {{baseUrl}}/me
 Content-Type: application/json
 Authorization: Bearer {{token}}

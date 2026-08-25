@@ -1,4 +1,3 @@
-
 services:
   postgres:
     container_name: first-api
@@ -8,12 +7,18 @@ services:
       POSTGRES_PASSWORD: docker
       POSTGRES_DB: firstapi
     ports:
-      - 5432:5432
+      - "5432:5432"
     volumes:
-      - postgres_data:/bitnami/postgressql/
+      - postgres_data:/bitnami/postgresql
+
+  redis:
+    container_name: first-api-redis
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
 volumes:
   postgres_data:
-
-
- 
+  redis_data:

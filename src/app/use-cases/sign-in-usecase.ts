@@ -1,5 +1,6 @@
 import { compare } from "bcrypt";
 import { prisma } from "../../lib/prisma/prisma.js";
+import { redis } from "../../lib/cache/redis.js";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 import { UserAlreadyExistError } from "../errors/user-already-exist-error.js";
@@ -48,6 +49,16 @@ export async function signInUseCase({
       expiresIn: "1d",
     },
   );
+
+  const { password: _, ...restDataUser } = userExist;
+
+  try {
+    await redis.set(`user:${restDataUser.id}`, JSON.stringify(restDataUser), {
+      EX: 60 * 5, //5 min
+    });
+  } catch (error) {
+    console.error("Redis SET failed", error);
+  }
 
   return {
     user: {
