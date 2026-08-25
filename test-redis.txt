@@ -1,0 +1,19 @@
+========== RESULTADO REDIS ==========
+
+Cadastro: 1000/1000
+Usuários criados: 813
+
+Testando 1000 requisições simultâneas de login...
+Total:       1000
+Sucesso:     1000
+Falhas:      0
+Tempo total: 13974.54 ms
+Média:       7050.28 ms
+
+Tokens disponíveis: 1000
+Testando 1000 requisições simultâneas de /me...
+Total:       1000
+Sucesso:     1000
+Falhas:      0
+Tempo total: 73.07 ms
+Média:       41.21 ms

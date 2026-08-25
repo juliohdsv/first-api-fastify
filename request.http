@@ -27,7 +27,7 @@ Content-Type: application/json
 
 ### profile
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMWYzMWQ5NS1mNmI4LTQxMDUtOTNiYy1kNDE5OWExMGUwOGEiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NzY2NDY4MywiZXhwIjoxNzg3NzUxMDgzfQ.uzFVPzUupAjVmMZofB614rHIKj1e4z06jX2dZiKOMK8
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMzAzNWVjZS1kODE4LTQxNjItOTE1Mi01YTJlYWExNDk1NWIiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NzY3MTc1MCwiZXhwIjoxNzg3NzU4MTUwfQ.V-p_5wWSleMr0VcVqpW7hfxvWcj0bjKWs16UDUJdYJc
 
 GET {{baseUrl}}/me
 Content-Type: application/json

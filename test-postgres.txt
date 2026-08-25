@@ -1,0 +1,19 @@
+========== RESULTADO POSTGRES ==========
+
+Cadastro: 1000/1000
+Usuários criados: 772
+
+Testando 1000 requisições simultâneas de login...
+Total:       1000
+Sucesso:     1000
+Falhas:      0
+Tempo total: 14325.03 ms
+Média:       7265.54 ms
+
+Tokens disponíveis: 1000
+Testando 1000 requisições simultâneas de /me...
+Total:       1000
+Sucesso:     1000
+Falhas:      0
+Tempo total: 475.68 ms
+Média:       344.47 ms

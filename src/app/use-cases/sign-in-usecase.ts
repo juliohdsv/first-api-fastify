@@ -3,7 +3,7 @@ import { prisma } from "../../lib/prisma/prisma.js";
 import { redis } from "../../lib/cache/redis.js";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
-import { UserAlreadyExistError } from "../errors/user-already-exist-error.js";
+import { UserNotFoundError } from "../errors/user-not-found-error.js";
 import { UnauthorizedError } from "../errors/unauthorized-error.js";
 
 interface ISignInUseCaseRequest {
@@ -29,7 +29,7 @@ export async function signInUseCase({
   });
 
   if (!userExist) {
-    throw new UserAlreadyExistError();
+    throw new UserNotFoundError();
   }
 
   const matchPassword = await compare(password, userExist.password);
