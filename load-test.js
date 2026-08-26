@@ -1,233 +1,82 @@
-import { randomUUID } from "node:crypto";
+import autocannon from "autocannon";
+import fs from "node:fs";
+import path from "node:path";
 
-const BASE_URL = "http://localhost:3333";
+const caminhoArquivo = path.resolve(process.cwd(), "usuarios_10000.json");
+const usuarios = JSON.parse(fs.readFileSync(caminhoArquivo, "utf-8"));
 
-const TOTAL_REQUESTS = 1000;
-const SIGNUP_CONCURRENCY = 500;
+console.log("Iniciando o simulador de carga do Autocannon...");
 
-const PASSWORD = "123456";
-const ROLE = "USER";
+// 2. Configura a instância do teste
+const instancia = autocannon(
+  {
+    url: "http://localhost:3333", // ⚠️ Troque pela URL/porta real do seu Fastify
+    connections: 100, // 100 conexões (usuários virtuais) batendo ao mesmo tempo
+    amount: 10_000, // Vai parar o teste assim que atingir o valor amount requisições no total
+    requests: [
+      {
+        method: "POST",
+        path: "/sign-in",
+        headers: { "content-type": "application/json" },
+        // Função executada antes de enviar a requisição para escolher um usuário aleatório
+        setupRequest: (request) => {
+          const usuarioAleatorio =
+            usuarios[Math.floor(Math.random() * usuarios.length)];
+          request.body = JSON.stringify({
+            email: usuarioAleatorio.email,
+            password: "123456", // A senha que você criptografou no banco
+          });
+          return request;
+        },
+        // Executa assim que a API responde o login
+        onResponse: (status, body, context) => {
+          if (status === 200 || status === 201) {
+            try {
+              const resposta = JSON.parse(body);
 
-function createFakeUser(index) {
-  const id = randomUUID();
-
-  return {
-    name: `Load Test ${index}`,
-    email: `load-${id}@gmail.com`,
-    password: PASSWORD,
-    role: ROLE,
-  };
-}
-
-async function request(url, options = {}) {
-  const start = performance.now();
-
-  try {
-    const response = await fetch(url, options);
-
-    let body = null;
-
-    try {
-      body = await response.json();
-    } catch {
-      // Resposta sem JSON
+              context.token = resposta.token;
+            } catch (e) {
+              // Falha ao ler o JSON de resposta
+            }
+          }
+        },
+      },
+      {
+        method: "GET",
+        path: "/me",
+        // Pega o token que foi salvo no contexto e injeta no cabeçalho Authorization
+        setupRequest: (request, context) => {
+          if (context.token) {
+            request.headers["Authorization"] = `Bearer ${context.token}`;
+          }
+          return request;
+        },
+      },
+    ],
+  },
+  (err, resultado) => {
+    if (err) {
+      console.error("Ocorreu um erro ao rodar o teste:", err);
+      return;
     }
 
-    return {
-      ok: response.ok,
-      status: response.status,
-      body,
-      duration: performance.now() - start,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      body: null,
-      duration: performance.now() - start,
-      error: error.message,
-    };
-  }
-}
-
-function printResult(result) {
-  console.log(`Total:       ${result.total}`);
-  console.log(`Sucesso:     ${result.success}`);
-  console.log(`Falhas:      ${result.failures}`);
-  console.log(`Tempo total: ${result.totalTime.toFixed(2)} ms`);
-  console.log(`Média:       ${result.average.toFixed(2)} ms`);
-}
-
-async function runConcurrentRequests(total, requestFn) {
-  const start = performance.now();
-
-  const promises = Array.from({ length: total }, (_, index) =>
-    requestFn(index),
-  );
-
-  const results = await Promise.all(promises);
-
-  const totalTime = performance.now() - start;
-
-  const success = results.filter((result) => result.ok).length;
-  const failures = results.length - success;
-
-  const average =
-    results.length > 0
-      ? results.reduce((sum, result) => sum + result.duration, 0) /
-        results.length
-      : 0;
-
-  return {
-    total: results.length,
-    success,
-    failures,
-    totalTime,
-    average,
-    results,
-  };
-}
-
-async function createUsers(total) {
-  console.log(`Criando ${total} usuários...`);
-
-  const users = [];
-
-  let created = 0;
-
-  while (created < total) {
-    const batchSize = Math.min(SIGNUP_CONCURRENCY, total - created);
-
-    const batch = Array.from({ length: batchSize }, (_, index) =>
-      createFakeUser(created + index),
+    // 3. Exibe os resultados organizados no terminal
+    console.log("\n=============================================");
+    console.log("       📊 RESULTADOS DO TESTE DE CARGA       ");
+    console.log("=============================================");
+    console.log(
+      `🚀 Requisições por segundo (Média): ${resultado.requests.average}`,
     );
-
-    const results = await Promise.all(
-      batch.map(async (user) => {
-        const result = await request(`${BASE_URL}/sign-up`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(user),
-        });
-
-        return {
-          user,
-          result,
-        };
-      }),
+    console.log(
+      `⏱️  Tempo de resposta médio (Média): ${resultado.latency.average} ms`,
     );
+    console.log(`❌ Total de requisições com erro: ${resultado.errors}`);
+    console.log(
+      `📦 Total de dados trafegados: ${(resultado.throughput.total / 1024 / 1024).toFixed(2)} MB`,
+    );
+    console.log("=============================================\n");
+  },
+);
 
-    for (const { user, result } of results) {
-      if (result.ok) {
-        users.push(user);
-      }
-    }
-
-    created += batchSize;
-
-    process.stdout.write(`\rCadastro: ${created}/${total}`);
-  }
-
-  console.log("");
-  console.log(`Usuários criados: ${users.length}`);
-  console.log("");
-
-  return users;
-}
-
-async function testLogin(users, total) {
-  console.log(`Testando ${total} requisições simultâneas de login...`);
-
-  const result = await runConcurrentRequests(total, async (index) => {
-    const user = users[index % users.length];
-
-    return request(`${BASE_URL}/sign-in`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: user.email,
-        password: user.password,
-      }),
-    });
-  });
-
-  printResult(result);
-
-  console.log("");
-
-  return result;
-}
-
-function extractToken(body) {
-  return (
-    body?.token ??
-    body?.accessToken ??
-    body?.data?.token ??
-    body?.data?.accessToken
-  );
-}
-
-async function testProfile(loginResult, total) {
-  const tokens = loginResult.results
-    .filter((result) => result.ok)
-    .map((result) => extractToken(result.body))
-    .filter(Boolean);
-
-  console.log(`Tokens disponíveis: ${tokens.length}`);
-
-  if (tokens.length === 0) {
-    console.log("Nenhum token disponível para testar /me.");
-
-    return;
-  }
-
-  console.log(`Testando ${total} requisições simultâneas de /me...`);
-
-  const result = await runConcurrentRequests(total, async (index) => {
-    const token = tokens[index % tokens.length];
-
-    return request(`${BASE_URL}/me`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  });
-
-  printResult(result);
-}
-
-async function main() {
-  console.log("========================================");
-  console.log("       LOAD TEST - NODE.JS MONOLITO");
-  console.log("========================================");
-  console.log(`Base URL:    ${BASE_URL}`);
-  console.log(`Requisições: ${TOTAL_REQUESTS}`);
-  console.log("========================================");
-  console.log("");
-
-  const users = await createUsers(TOTAL_REQUESTS);
-
-  if (users.length === 0) {
-    console.log("Nenhum usuário foi criado.");
-    process.exit(1);
-  }
-
-  const loginResult = await testLogin(users, TOTAL_REQUESTS);
-
-  await testProfile(loginResult, TOTAL_REQUESTS);
-
-  console.log("");
-  console.log("========================================");
-  console.log("           TESTE FINALIZADO");
-  console.log("========================================");
-}
-
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Adiciona uma barra de progresso visual no terminal enquanto o teste roda
+autocannon.track(instancia, { renderProgressBar: true });

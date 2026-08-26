@@ -1,19 +1,32 @@
-========== RESULTADO REDIS ==========
+Iniciando o simulador de carga do Autocannon...
+Running 10000 requests test @ http://localhost:3333
+100 connections
 
-Cadastro: 1000/1000
-Usuários criados: 813
 
-Testando 1000 requisições simultâneas de login...
-Total:       1000
-Sucesso:     1000
-Falhas:      0
-Tempo total: 13974.54 ms
-Média:       7050.28 ms
+┌─────────┬──────┬──────┬─────────┬─────────┬───────────┬───────────┬─────────┐
+│ Stat    │ 2.5% │ 50%  │ 97.5%   │ 99%     │ Avg       │ Stdev     │ Max     │
+├─────────┼──────┼──────┼─────────┼─────────┼───────────┼───────────┼─────────┤
+│ Latency │ 0 ms │ 5 ms │ 1784 ms │ 1873 ms │ 722.06 ms │ 756.42 ms │ 8268 ms │
+└─────────┴──────┴──────┴─────────┴─────────┴───────────┴───────────┴─────────┘
+┌───────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│ Stat      │ 1%      │ 2.5%    │ 50%     │ 97.5%   │ Avg     │ Stdev   │ Min     │
+├───────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ Req/Sec   │ 100     │ 104     │ 144     │ 152     │ 135.11  │ 16.86   │ 100     │
+├───────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ Bytes/Sec │ 40.5 kB │ 42.1 kB │ 58.3 kB │ 61.5 kB │ 54.7 kB │ 6.82 kB │ 40.5 kB │
+└───────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
-Tokens disponíveis: 1000
-Testando 1000 requisições simultâneas de /me...
-Total:       1000
-Sucesso:     1000
-Falhas:      0
-Tempo total: 73.07 ms
-Média:       41.21 ms
+Req/Bytes counts sampled once per second.
+# of samples: 74
+
+10k requests in 74.06s, 4.04 MB read
+2 errors (2 timeouts)
+
+=============================================
+       📊 RESULTADOS DO TESTE DE CARGA
+=============================================
+🚀 Requisições por segundo (Média): 135.11
+⏱️  Tempo de resposta médio (Média): 722.06 ms
+❌ Total de requisições com erro: 2
+📦 Total de dados trafegados: 3.86 MB
+=============================================
